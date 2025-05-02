@@ -38,7 +38,6 @@ func _process(_delta):
 
 func send_request():
 	var json_string: String = JSON.print(request)
-	$Panel/log.bbcode_text += "[*] Sended "+json_string+"\n"
 	_client.get_peer(1).put_packet(json_string.to_utf8())
 
 func _input(event):

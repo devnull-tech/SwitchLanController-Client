@@ -1,6 +1,6 @@
 extends Control
 
-const server_url = "ws://192.168.1.238:8765"
+var connected = false
 var _client = WebSocketClient.new()
 var request: Dictionary = {
 	"action": "",
@@ -13,27 +13,32 @@ func _ready():
 	_client.connect("connection_error", self, "_closed")
 	_client.connect("connection_established", self, "_connected")
 	_client.connect("data_received", self, "_on_data")
-	var err = _client.connect_to_url(server_url)
-	if err != OK:
-		set_process(false)
 
 func _closed(was_clean = false):
+	connected = false
 	if not was_clean:
-		$log.text += "[!] Connection closed\n"
+		$Panel/log.bbcode_text += "[color=red][!][/color] Connection closed\n"
 	set_process(false)
+	$Panel/connect.disabled = false
+	$Panel/status.text = "DISCONNECTED"
+	$Panel/status.set("custom_colors/font_color", "#ff0000")
 
 func _connected(_proto = ""):
-	$log.text += "[+] Connected\n"
+	$Panel/log.bbcode_text += "[color=green][+][/color] Connected\n"
+	$Panel/status.text = "CONNECTED"
+	$Panel/status.set("custom_colors/font_color", "#00ff20")
+	connected = true
+	$Panel/connect.disabled = true
 
 func _on_data():
-	$log.text += "[*] Server said something \n"
+	$Panel/log.bbcode_text += "[color=blue][*][color/] Server said something\n"
 
 func _process(_delta):
 	_client.poll()
 
 func send_request():
 	var json_string: String = JSON.print(request)
-	$log.text += "[*] Sended "+json_string+"\n"
+	$Panel/log.bbcode_text += "[*] Sended "+json_string+"\n"
 	_client.get_peer(1).put_packet(json_string.to_utf8())
 
 func _input(event):
@@ -90,7 +95,21 @@ func _input(event):
 	if event.is_action_pressed("select") or event.is_action_released("select"):
 		request.action = "select"
 		is_valid = true
-	if is_valid:
+	if is_valid and connected:
 		if not request.action.begins_with("axis"):
 			request.is_pressed = event.is_pressed()
 		send_request()
+
+func _on_connect_button_up():
+	var server_url = "ws://"+$Panel/remote_ip.text+":8765"
+	var err = _client.connect_to_url(server_url)
+	if err != OK:
+		set_process(false)
+
+func _on_vkeyboard_button_up(extra_arg_0):
+	$Panel/remote_ip.text += extra_arg_0
+
+func _on_del_button_up():
+	var ip_len = $Panel/remote_ip.text.length()
+	if ip_len > 0:
+		$Panel/remote_ip.text = $Panel/remote_ip.text.substr(0, ip_len-1)
